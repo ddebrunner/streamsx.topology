@@ -753,6 +753,8 @@ public interface TStream<T> extends TopologyElement, Placeable<TStream<T>>  {
      * @see com.ibm.streamsx.topology.spl.SPLStreams#subscribe(TopologyElement, String, com.ibm.streams.operator.StreamSchema)
      */
     void publish(String topic, boolean allowFilter);
+    
+    void publish(Supplier<String> topicParameter, boolean allowFilter);
 
     /**
      * Parallelizes the stream into a a fixed

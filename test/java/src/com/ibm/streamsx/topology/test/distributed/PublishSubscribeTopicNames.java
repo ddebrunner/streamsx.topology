@@ -21,7 +21,7 @@ public class PublishSubscribeTopicNames extends TestTopology {
     public void testNullTopicName() throws Exception {
         final Topology t = new Topology();
        
-        t.strings().publish(null, true);
+        t.strings().publish((String) null, true);
     }
     
     @Test(expected=IllegalArgumentException.class)

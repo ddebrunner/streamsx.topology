@@ -364,12 +364,23 @@ public class StreamImpl<T> extends TupleContainer<T> implements TStream<T> {
     private static void filtersNotAllowed(boolean allowFilter) {
     	if (allowFilter)
     		throw new IllegalArgumentException("TStream tuple type cannot be published allowing filters.");
-    }
+    }   
     
     @Override
-    public void publish(String topic, boolean allowFilter) {
-        
+    public void publish(String topic, boolean allowFilter) {        
         checkTopicName(topic);
+        TStream<?> modifiedStream = publishReal(topic, allowFilter);
+        if (modifiedStream != null)
+            modifiedStream.publish(topic, allowFilter);
+    }
+    @Override
+    public void publish(Supplier<String> topicParameter, boolean allowFilter) {
+        TStream<?> modifiedStream = publishReal(topicParameter, allowFilter);
+        if (modifiedStream != null)
+            modifiedStream.publish(topicParameter, allowFilter);       
+    }
+    
+    private TStream<?> publishReal(Object topic, boolean allowFilter) {
     	
     	Type tupleType = getTupleType();
         
@@ -378,10 +389,8 @@ public class StreamImpl<T> extends TupleContainer<T> implements TStream<T> {
         	
             @SuppressWarnings("unchecked")
             TStream<JSONObject> json = (TStream<JSONObject>) this;
-            JSONStreams.toSPL(json).publish(topic, allowFilter);
-            return;
-        }
-        
+            return JSONStreams.toSPL(json);
+        }        
         
         BOperatorInvocation op;
         if (Schemas.usesDirectSchema(tupleType)
@@ -416,6 +425,8 @@ public class StreamImpl<T> extends TupleContainer<T> implements TStream<T> {
 
         SourceInfo.setSourceInfo(op, SPL.class);
         this.connectTo(op, false, null);
+        
+        return null;
     }
     
     /**

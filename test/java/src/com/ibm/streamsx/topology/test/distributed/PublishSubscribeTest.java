@@ -4,6 +4,7 @@
  */
 package com.ibm.streamsx.topology.test.distributed;
 
+import static com.ibm.streamsx.topology.context.ContextProperties.SUBMISSION_PARAMS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -16,7 +17,9 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Before;
@@ -28,7 +31,9 @@ import com.ibm.streams.operator.types.ValueFactory;
 import com.ibm.streams.operator.types.XML;
 import com.ibm.streamsx.topology.TStream;
 import com.ibm.streamsx.topology.Topology;
+import com.ibm.streamsx.topology.context.ContextProperties;
 import com.ibm.streamsx.topology.context.StreamsContext.Type;
+import com.ibm.streamsx.topology.function.Supplier;
 import com.ibm.streamsx.topology.spl.SPLSchemas;
 import com.ibm.streamsx.topology.spl.SPLStream;
 import com.ibm.streamsx.topology.spl.SPLStreams;
@@ -77,14 +82,36 @@ public class PublishSubscribeTest extends TestTopology {
     public void testPublishStringMultipleTopics() throws Exception {
 
         TStream<String> source = source();       
-        source.publish("testPublishString");
+        source.publish("testPublishStringMultipleTopics");
         
         // A stream that should not be subscribed to!
         TStream<String> source2 = source("X");         
-        source2.publish("testPublishString2");
+        source2.publish("testPublishStringMultipleTopics2");
        
-        TStream<String> subscribe = source.topology().subscribe("testPublishString", String.class);
+        TStream<String> subscribe = source.topology().subscribe("testPublishStringMultipleTopics", String.class);
 
+        checkSubscribedAsStrings(subscribe);
+    }
+    @Test
+    public void testPublishStringMultipleTopicsParam() throws Exception {
+
+        TStream<String> source = source();       
+        Supplier<String> tn1 = source.topology().createSubmissionParameter("tn1", String.class);
+        source.publish(tn1, false);
+        
+        // A stream that should not be subscribed to!
+        TStream<String> source2 = source("X");
+        Supplier<String> tn2 = source.topology().createSubmissionParameter("tn2", String.class);
+        source2.publish(tn2, false);
+       
+        TStream<String> subscribe = source.topology().subscribe("testPublishStringMultipleTopicsParam", String.class);
+
+        Map<String,String> sps = new HashMap<>();
+        sps.put("tn1", "testPublishStringMultipleTopicsParam");
+        sps.put("tn2", "testPublishStringMultipleTopicsParam2");
+        
+        getConfig().put(SUBMISSION_PARAMS, sps);
+        
         checkSubscribedAsStrings(subscribe);
     }
     
