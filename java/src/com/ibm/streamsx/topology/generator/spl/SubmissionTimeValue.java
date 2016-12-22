@@ -25,7 +25,9 @@ import com.ibm.streamsx.topology.internal.gson.GsonUtilities;
  */
 public class SubmissionTimeValue {
     private static final String OP_ATTR_SPL_SUBMISSION_PARAMS = "__spl_submissionParams";
-    /** map<spOpParamName,opParam> opParam has type TYPE_SUBMISSION_PARAMETER */
+    /** map<spOpParamName,opParam> opParam has type TYPE_SUBMISSION_PARAMETER
+     * keyed by the user given name
+     */
     private final Map<String,JsonObject> allSubmissionParams;
     /** map<opName,opJsonObject> */
     private Map<String,JsonObject> functionalOps = new HashMap<>();
@@ -38,14 +40,14 @@ public class SubmissionTimeValue {
     static class ParamsInfo {
         /** The value for the NAME_SUBMISSION_PARAM_NAMES param.
          * <p>
-         * A string of comma separated literal STV opParamName strings.
-         * e.g., "__jaa_threshold", "__jaa_width"
+         * A string of comma separated literal user provided names
+         * e.g., "threshold", "width"
          */
         final String names;
         /** The value for the NAME_SUBMISSION_PARAM_VALUES param.
          * <p>
          * A string of comma separated STV opParam expression strings.
-         * e.g., (rstring) $__jaa_threshold, (rstring) $__jaa_width 
+         * e.g., (rstring) $__jaa_stv_threshold, (rstring) $__jaa_stv_width 
          */
         final String values;
         
@@ -56,11 +58,13 @@ public class SubmissionTimeValue {
     }
     
     /**
-     * Create a json operator parameter name for the submission parameter name. 
+     * Create a SPL source parameter name for the submission parameter name.
+     * Parameter names are not restricted to SPL identifiers so we create
+     * a valid SPL unique identifier from the user given name.
      * @param spName the submission parameter name
-     * @return the operator parameter name
+     * @return the SPL source parameter name
      */
-    public static String mkOpParamName(String spName) {
+    private static String mkSplStvName(String spName) {
         spName = spName.replace('.', '_');
         return "__jaa_stv_" + SPLGenerator.getSPLCompatibleName(spName);
     }
@@ -82,11 +86,10 @@ public class SubmissionTimeValue {
         
         if (params != null) {
             for (Entry<String, JsonElement> e : params.entrySet()) {
-                String key = e.getKey();
                 JsonObject param = e.getValue().getAsJsonObject();
                 if (TYPE_SUBMISSION_PARAMETER.equals(jstring(param, "type"))) {
                     JsonObject sp = jobject(param, "value");
-                    all.put(mkOpParamName(jstring(sp, "name")), param);
+                    all.put(jstring(sp, "name"), param);
                 }
             }
         }
@@ -105,8 +108,8 @@ public class SubmissionTimeValue {
         StringBuilder valuesSb = new StringBuilder();
         
         boolean first = true;
-        for (String opParamName : allSubmissionParams.keySet()) {
-            JsonObject spParam = allSubmissionParams.get(opParamName);
+        for (String paramName : allSubmissionParams.keySet()) {
+            JsonObject spParam = allSubmissionParams.get(paramName);
             JsonObject spval = jobject(spParam, "value");
             if (first)
                 first = false;
@@ -114,7 +117,7 @@ public class SubmissionTimeValue {
                 namesSb.append(", ");
                 valuesSb.append(", ");
             }
-            namesSb.append(SPLGenerator.stringLiteral(opParamName));
+            namesSb.append(SPLGenerator.stringLiteral(paramName));
             valuesSb.append("(rstring) ").append(generateCompParamName(spval));
         }
 
@@ -164,7 +167,7 @@ public class SubmissionTimeValue {
                         String type = jstring(param, "type");
                         if (TYPE_SUBMISSION_PARAMETER.equals(type)) {
                             JsonObject spval = param.get("value").getAsJsonObject();
-                            String name = mkOpParamName(jstring(spval, "name"));
+                            String name = mkSplStvName(jstring(spval, "name"));
                             spParams.add(name, param);
                         }
                     }
@@ -182,7 +185,7 @@ public class SubmissionTimeValue {
                     String type = jstring(jwidth, "type");
                     if (TYPE_SUBMISSION_PARAMETER.equals(type)) {
                         JsonObject spval = jwidth.get("value").getAsJsonObject();
-                        String pname = mkOpParamName(jstring(spval,"name")); 
+                        String pname = mkSplStvName(jstring(spval,"name")); 
                         spParams.add(pname, jwidth);
                     }
                 }
@@ -222,7 +225,7 @@ public class SubmissionTimeValue {
                 JsonObject spParam = p.getValue().getAsJsonObject();
                 // need to end up generating: __jaa_stv_foo : $__jaa_stv_foo;
                 JsonObject spval = spParam.get("value").getAsJsonObject();
-                String name = mkOpParamName(jstring(spval, "name")); 
+                String name = mkSplStvName(jstring(spval, "name")); 
                 opParams.add(name, spParam);
             }
         }
@@ -323,7 +326,7 @@ public class SubmissionTimeValue {
      * @return the name
      */
     static String generateCompParamName(JsonObject spval) {
-        return "$" + mkOpParamName(spval.get("name").getAsString());
+        return "$" + mkSplStvName(spval.get("name").getAsString());
     }
 
 }

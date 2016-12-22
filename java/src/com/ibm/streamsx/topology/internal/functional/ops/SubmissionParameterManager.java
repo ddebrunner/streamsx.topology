@@ -18,6 +18,8 @@ import com.ibm.streamsx.topology.generator.functional.FunctionalOpProperties;
 import com.ibm.streamsx.topology.generator.spl.SubmissionTimeValue;
 
 import static com.ibm.streamsx.topology.builder.JParamTypes.TYPE_SUBMISSION_PARAMETER;
+import static com.ibm.streamsx.topology.generator.functional.FunctionalOpProperties.NAME_SUBMISSION_PARAM_NAMES;
+import static com.ibm.streamsx.topology.generator.functional.FunctionalOpProperties.NAME_SUBMISSION_PARAM_VALUES;
 
 /**
  * A manager for making a submission parameter Supplier usable
@@ -80,17 +82,9 @@ public class SubmissionParameterManager {
         factories.put(MetaType.FLOAT64, new Factory() {
             Object valueOf(String s) { return Double.valueOf(s); } });
     }
-    private static final Map<String,String> UNINIT_MAP = Collections.emptyMap();
-    /**  map of topology's <spOpParamName, strVal> */
-    private static volatile Map<String,String> params = UNINIT_MAP;
-    
-    /** The name of the functional operator's actual SPL parameter
-     * for the submission parameters names */
-    public static final String NAME_SUBMISSION_PARAM_NAMES = FunctionalOpProperties.NAME_SUBMISSION_PARAM_NAMES;
-    /** The name of the functional operator's actual SPL parameter
-     * for the submission parameters values */
-    public static final String NAME_SUBMISSION_PARAM_VALUES = FunctionalOpProperties.NAME_SUBMISSION_PARAM_VALUES;
-    
+
+    private static Map<String,String> params;
+        
     /**
      * Initialize submission parameter value information
      * from operator context information.
@@ -99,7 +93,7 @@ public class SubmissionParameterManager {
     public synchronized static void initialize(OperatorContext context) {
         // The TYPE_SPL_SUBMISSION_PARAMS parameter value is the same for
         // all operator contexts.
-        if (params == UNINIT_MAP) {
+        if (params == null) {
             List<String> names = context.getParameterValues(NAME_SUBMISSION_PARAM_NAMES);
             if (names != null && !names.isEmpty()) {
                 List<String> values = context.getParameterValues(NAME_SUBMISSION_PARAM_VALUES);
@@ -109,8 +103,9 @@ public class SubmissionParameterManager {
                     String value = values.get(i);
                     map.put(name, value);
                 }
-                params = map;
-                // System.out.println("SPM.initialize() " + params);
+                params = Collections.unmodifiableMap(map);
+            } else {
+                params = Collections.emptyMap();
             }
         }
     }
@@ -172,7 +167,7 @@ public class SubmissionParameterManager {
         // good to go. initialize params
         params = new HashMap<>();
         for (Map.Entry<String, String> e : allsp.entrySet()) {
-            params.put(SubmissionTimeValue.mkOpParamName(e.getKey()), e.getValue());
+            params.put(e.getKey(), e.getValue());
         }
         // System.out.println("SPM.initializeEmbedded() " + params);
     }
@@ -187,8 +182,8 @@ public class SubmissionParameterManager {
      * @return the parameter's value appropriately typed for metaType.
      *          may be null.
      */
-    public static Object getValue(String spName, MetaType metaType) {
-        String value = params.get(SubmissionTimeValue.mkOpParamName(spName));
+    public synchronized static Object getValue(String spName, MetaType metaType) {
+        String value = params.get(spName);
         if (value == null) {
             // System.out.println("SPM.getValue "+spName+" "+metaType+ " params " + params);
             throw new IllegalArgumentException("Unexpected submission parameter name " + spName);

@@ -7,6 +7,7 @@ package com.ibm.streamsx.topology.builder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,7 +58,9 @@ public class GraphBuilder extends BJSONObject {
     private final JSONObject config = new OrderedJSONObject();
 
     private final JSONObject params = new OrderedJSONObject();
-    private final JSONObject spParams = new JSONObject();
+    
+    // Names of submission parameters defined.
+    private final Set<String> spParams = new HashSet<>();
     
     public GraphBuilder(String namespace, String name) {
         super();
@@ -318,10 +321,10 @@ public class GraphBuilder extends BJSONObject {
      * @param jo the SubmissionParameter parameter value object
      */
     public void createSubmissionParameter(String name, JSONObject jo) {
-        if (spParams.containsKey(name))
+        if (spParams.contains(name))
             throw new IllegalArgumentException("name is already defined");
-        spParams.put(name, jo);
-        params.put(SubmissionTimeValue.mkOpParamName(name), jo);
+        spParams.add(name);
+        params.put(name, jo);
     }
 
 }
