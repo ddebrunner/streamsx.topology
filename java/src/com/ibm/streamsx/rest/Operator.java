@@ -7,86 +7,133 @@ package com.ibm.streamsx.rest;
 import java.io.IOException;
 import java.util.List;
 
-public class Operator {
-    private final StreamsConnection connection;
-    private OperatorGson operator;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.Expose;
 
-    public Operator(StreamsConnection sc, OperatorGson gsonOperator) {
-        connection = sc;
-        operator = gsonOperator;
-    };
+/**
+ * An object describing an IBM Streams Operator
+ *
+ */
+public class Operator {
+
+    private StreamsConnection connection;
+    @Expose
+    private String connections;
+    @Expose
+    private String domain;
+    @Expose
+    private String host;
+    @Expose
+    private long indexWithinJob;
+    @Expose
+    private String inputPorts;
+    @Expose
+    private String instance;
+    @Expose
+    private String job;
+    @Expose
+    private String metrics;
+    @Expose
+    private String name;
+    @Expose
+    private String operatorKind;
+    @Expose
+    private String outputPorts;
+    @Expose
+    private String pe;
+    @Expose
+    private String resourceAllocation;
+    @Expose
+    private String resourceType;
+    @Expose
+    private String restid;
+    @Expose
+    private String self;
 
     /**
-     * @return List of {@Metric}
+     * this function is not intended for external consumption
+     */
+    void setConnection(final StreamsConnection sc) {
+        connection = sc;
+    }
+
+    /**
+     * Gets a list of {@link Metric metrics} for this operator
+     * 
+     * @return List of {@link Metric IBM Streams Metrics}
      * @throws IOException
      */
     public List<Metric> getMetrics() throws IOException {
-        String sGetMetricsURI = operator.metrics;
 
-        String sReturn = connection.getResponseString(sGetMetricsURI);
-        List<Metric> sMetrics = new MetricsArray(connection, sReturn).getMetrics();
+        String sReturn = connection.getResponseString(metrics);
+        List<Metric> lMetrics = new MetricsArray(connection, sReturn).getMetrics();
 
-        return sMetrics;
+        return lMetrics;
     }
 
-    public String getConnections() {
-        return operator.connections;
-    }
-
-    public String getDomain() {
-        return operator.domain;
-    }
-
-    public String getHost() {
-        return operator.host;
-    }
-
+    /**
+     * Gets the index of this operator within the {@link Job}
+     * 
+     * @return the index as a long
+     */
     public long getIndexWithinJob() {
-        return operator.indexWithinJob;
+        return indexWithinJob;
     }
 
-    public String getInputPorts() {
-        return operator.inputPorts;
+    /**
+     * Gets a list of {@link InputPort input ports} for this operator
+     *
+     * 
+     * @return List of {@link InputPort Input Ports} for this operator
+     * @throws IOException
+     */
+    public List<InputPort> getInputPorts() throws IOException {
+        String sReturn = connection.getResponseString(inputPorts);
+        List<InputPort> lInPorts = new InputPortsArray(connection, sReturn).getInputPorts();
+        return lInPorts;
     }
 
-    public String getInstance() {
-        return operator.instance;
-    }
-
-    public String getJob() {
-        return operator.job;
-    }
-
+    /**
+     * Name of this operator
+     * 
+     * @return the operator name
+     */
     public String getName() {
-        return operator.name;
+        return name;
     }
 
+    /**
+     * SPL primitive operator type for this operator
+     * 
+     * @return the SPL primitive operator type
+     */
     public String getOperatorKind() {
-        return operator.operatorKind;
+        return operatorKind;
     }
 
-    public String getOutputPorts() {
-        return operator.outputPorts;
+    /**
+     * Gets a list of {@link OutputPort output ports} for this operator
+     * 
+     * @return List of {@link OutputPort Output Ports} for this operator
+     * @throws IOException
+     */
+    public List<OutputPort> getOutputPorts() throws IOException {
+        String sReturn = connection.getResponseString(outputPorts);
+        List<OutputPort> lOutPorts = new OutputPortsArray(connection, sReturn).getOutputPorts();
+        return lOutPorts;
     }
 
-    public String getPe() {
-        return operator.pe;
-    }
-
-    public String getResourceAllocation() {
-        return operator.resourceAllocation;
-    }
-
+    /**
+     * Identifies the REST resource type
+     * 
+     * @return "operator"
+     */
     public String getResourceType() {
-        return operator.resourceType;
+        return resourceType;
     }
 
-    public String getRestid() {
-        return operator.restid;
+    @Override
+    public String toString() {
+        return (new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create().toJson(this));
     }
-
-    public String getSelf() {
-        return operator.self;
-    }
-
 }

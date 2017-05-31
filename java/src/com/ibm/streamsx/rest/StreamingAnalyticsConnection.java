@@ -22,11 +22,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.ibm.streamsx.topology.internal.streaminganalytics.VcapServices;
 
+/**
+  * Basic connection to a Streaming Analytics Instance
+  *
+  */
 public class StreamingAnalyticsConnection extends StreamsConnection {
 
-    static final Logger traceLog = Logger.getLogger("com.ibm.streamsx.topology.rest.StreamingAnalyticsConnection");
+    static final Logger traceLog = Logger.getLogger("com.ibm.streamsx.rest.StreamingAnalyticsConnection");
 
     private String jobsPath;
+    private String instanceId;
 
     /**
      * Basic connection to the Streaming Analytics Instance
@@ -79,7 +84,7 @@ public class StreamingAnalyticsConnection extends StreamsConnection {
             throw new IllegalStateException("Missing restURL for service");
         }
 
-        streamingConnection.setURL(restURL);
+        streamingConnection.setStreamsRESTURL(restURL);
         String[] rTokens = resourcesPath.split("/");
         if (rTokens[3].equals("service_instances")) {
             streamingConnection.setInstanceId(rTokens[4]);
@@ -89,17 +94,39 @@ public class StreamingAnalyticsConnection extends StreamsConnection {
         return streamingConnection;
     }
 
+    private void setInstanceId(String id) {
+        instanceId = id;
+    }
+
     private void setJobsPath(String sJobs) {
         jobsPath = sJobs;
     }
 
     /**
-     * @param jobId
-     *            string indicating the job id to be cancelled
-     * @return true if job is cancelled, false otherwise
-     * @throws Exception
+     * Streaming Analytics only allows one instance per service, so each
+     * connection can only ever access a single instance that we've known about
+     * since object creation
+     *
+     * @return an {@link Instance IBM Streams Instance} associated with this connection
+     *
+     * @throws IOException
      */
-    @Override
+    public Instance getInstance() throws IOException {
+        return super.getInstance(instanceId);
+    }
+
+    /**
+     * Cancels a job that has been submitted to IBM Streams
+     *
+     * @param jobId
+     *            string indicating the job id to be canceled
+     * @return boolean indicating
+     *         <ul>
+     *         <li>true - if job is cancelled
+     *         <li>false - if the job still exists
+     *         </ul>
+     * @throws IOException
+     */
     public boolean cancelJob(String jobId) throws IOException {
         boolean rc = false;
         String sReturn = "";
@@ -125,10 +152,8 @@ public class StreamingAnalyticsConnection extends StreamsConnection {
     /**
      * main currently exists to test this object
      * 
-     * @param credentials
-     *            String representing the VCAP_SERVICES, or a file location
-     * @param serviceName
-     *            String representing the service name
+     * credentials - String representing the VCAP_SERVICES, or a file location
+     * serviceName - String representing the service name
      */
     public static void main(String[] args) {
         String credentials = args[0];
@@ -138,24 +163,41 @@ public class StreamingAnalyticsConnection extends StreamsConnection {
         System.out.println(serviceName);
 
         try {
-            StreamsConnection sClient = StreamingAnalyticsConnection.createInstance(credentials, serviceName);
+            StreamingAnalyticsConnection sClient = StreamingAnalyticsConnection.createInstance(credentials,
+                    serviceName);
 
             System.out.println("Returning instance");
             Instance instance = sClient.getInstance();
 
-            System.out.println("Returning jobs");
             List<Job> jobs = instance.getJobs();
             for (Job job : jobs) {
-                System.out.println("Looking at job: " + job.getId());
+                System.out.println("Job: " + job.toString());
                 List<Operator> operators = job.getOperators();
                 for (Operator op : operators) {
-                    System.out.println("Looking at metrics for job");
+                    System.out.println("Operator: " + op.toString());
                     List<Metric> metrics = op.getMetrics();
+                    for (Metric m : metrics) {
+                        System.out.println("Metric: " + m.toString());
+                    }
+                    List<OutputPort> outP = op.getOutputPorts();
+                    for (OutputPort oport : outP) {
+                        System.out.println("Output Port: " + oport.toString());
+                        for (Metric om : oport.getMetrics()) {
+                            System.out.println("Output Port Metric: " + om.toString());
+                        }
+                    }
+                    List<InputPort> inP = op.getInputPorts();
+                    for (InputPort ip : inP) {
+                        System.out.println("Input Port: " + ip.toString());
+                        for (Metric im : ip.getMetrics()) {
+                            System.out.println("Input Port Metric: " + im.toString());
+                        }
+                    }
                 }
             }
 
             if (!jobs.isEmpty()) {
-                System.out.println("Removing first job");
+                System.out.println("Removing first job specifically");
                 Job job = jobs.get(0);
                 if (job.cancel()) {
                     System.out.println("Job canceled");

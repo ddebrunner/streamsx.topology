@@ -4,156 +4,244 @@
  */
 package com.ibm.streamsx.rest;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.Expose;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.Gson;
 
+/**
+ * An object describing an IBM Streams Job submitted within a specified instance
+ */
 public class Job {
-    private final StreamsConnection connection;
-    private JobGson job;
+    private StreamsConnection connection;
 
-    public Job(StreamsConnection sc, JobGson gsonJob) {
-        connection = sc;
-        job = gsonJob;
-    };
+    @Expose
+    private String activeViews;
+    @Expose
+    private String adlFile;
+    @Expose
+    private String applicationName;
+    @Expose
+    private String applicationPath;
+    @Expose
+    private String applicationScope;
+    @Expose
+    private String applicationVersion;
+    @Expose
+    private String checkpointPath;
+    @Expose
+    private String dataPath;
+    @Expose
+    private String domain;
+    @Expose
+    private String health;
+    @Expose
+    private String hosts;
+    @Expose
+    private String id;
+    @Expose
+    private String instance;
+    @Expose
+    private String jobGroup;
+    @Expose
+    private String name;
+    @Expose
+    private String operatorConnections;
+    @Expose
+    private String operators;
+    @Expose
+    private String outputPath;
+    @Expose
+    private String peConnections;
+    @Expose
+    private String pes;
+    @Expose
+    private String resourceAllocations;
+    @Expose
+    private String resourceType;
+    @Expose
+    private String restid;
+    @Expose
+    private String self;
+    @Expose
+    private String startedBy;
+    @Expose
+    private String status;
+    @Expose
+    private ArrayList<String> submitParameters;
+    @Expose
+    private long submitTime;
+    @Expose
+    private String views;
 
-    public Job(StreamsConnection sc, String sJob) {
-        connection = sc;
-        job = new Gson().fromJson(sJob, JobGson.class);
+    /**
+     * this function is not intended for external consumption
+     */
+    static final Job create(StreamsConnection sc, String gsonJobString) {
+        Job job = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create().fromJson(gsonJobString, Job.class);
+        job.setConnection(sc);
+        return job;
     }
 
     /**
-     * @return {@Operator}
+     * this function is not intended for external consumption
+     */
+    void setConnection(final StreamsConnection sc) {
+        connection = sc;
+    }
+
+    /**
+     * Gets a list of {@link Operator operators} for this job
+     * 
+     * @return List of {@link Operator IBM Streams Operators}
      * @throws IOException
      */
     public List<Operator> getOperators() throws IOException {
-        String sGetOperatorsURI = job.operators;
+        String sReturn = connection.getResponseString(operators);
 
-        String sReturn = connection.getResponseString(sGetOperatorsURI);
-
-        List<Operator> operators = new OperatorsArray(connection, sReturn).getOperators();
-        return operators;
+        List<Operator> oList = new OperatorsArray(connection, sReturn).getOperators();
+        return oList;
     }
 
     /**
-     * @return true if this job is cancelled, false otherwise
+     * Cancels this job
+     * 
+     * @return the result of the cancel method
+     *         <ul>
+     *         <li>true if this job is cancelled
+     *         <li>false if this job still exists
+     *         </ul>
+     * @throws IOException
+     * @throws Exception
      */
     public boolean cancel() throws Exception, IOException {
-        return connection.cancelJob(job.id);
+        return connection.cancelJob(id);
     }
 
-    public String getActiveViews() {
-        return job.activeViews;
-    }
-
-    public String getAdlFile() {
-        return job.adlFile;
-    }
-
+    /**
+     * Gets the name of the streams processing application that this job is
+     * running
+     * 
+     * @return the application name
+     */
     public String getApplicationName() {
-        return job.applicationName;
+        return applicationName;
     }
 
-    public String getApplicationPath() {
-        return job.applicationPath;
-    }
-
-    public String getApplicationScope() {
-        return job.applicationScope;
-    }
-
-    public String getApplicationVersion() {
-        return job.applicationVersion;
-    }
-
-    public String getCheckpointPath() {
-        return job.checkpointPath;
-    }
-
-    public String getDataPath() {
-        return job.dataPath;
-    }
-
-    public String getDomain() {
-        return job.domain;
-    }
-
+    /**
+     * Gets the health indicator for this job
+     * 
+     * @return the health indicator containing one of the following values:
+     *         <ul>
+     *         <li>healthy
+     *         <li>partiallyHealthy
+     *         <li>partiallyUnhealthy
+     *         <li>unhealthy
+     *         <li>unknown
+     *         </ul>
+     *
+     */
     public String getHealth() {
-        return job.health;
+        return health;
     }
 
-    public String getHosts() {
-        return job.hosts;
-    }
-
+    /**
+     * Gets the id of this job
+     * 
+     * @return the job identifier
+     */
     public String getId() {
-        return job.id;
+        return id;
     }
 
-    public String getInstance() {
-        return job.instance;
-    }
-
+    /**
+     * Gets the group this job belongs to
+     * 
+     * @return the job group
+     */
     public String getJobGroup() {
-        return job.jobGroup;
+        return jobGroup;
     }
 
+    /**
+     * Gets the name of this job
+     * 
+     * @return the job name
+     */
     public String getName() {
-        return job.name;
+        return name;
     }
 
-    public String getOperatorConnections() {
-        return job.operatorConnections;
+    /**
+     * Gets a list of {@link ProcessingElement processing elements} for this job
+     * 
+     * @return List of {@link ProcessingElement Processing Elements}
+     * @throws IOException
+     */
+    public List<ProcessingElement> getPes() throws IOException {
+        String sReturn = connection.getResponseString(pes);
+        List<ProcessingElement> peList = ProcessingElement.getPEList(connection, sReturn);
+        return peList;
     }
 
-    public String getOutputPath() {
-        return job.outputPath;
-    }
-
-    public String getPeConnections() {
-        return job.peConnections;
-    }
-
-    public String getPes() {
-        return job.pes;
-    }
-
-    public String getResourceAllocations() {
-        return job.resourceAllocations;
-    }
-
+    /**
+     * Identifies the REST resource type
+     * 
+     * @return "job"
+     */
     public String getResourceType() {
-        return job.resourceType;
+        return resourceType;
     }
 
-    public String getRestid() {
-        return job.restid;
-    }
-
-    public String getSelf() {
-        return job.self;
-    }
-
+    /**
+     * Identifies the user ID that started this job
+     * 
+     * @return the user ID that started this job
+     */
     public String getStartedBy() {
-        return job.startedBy;
+        return startedBy;
     }
 
+    /**
+     * Describes the status of this job
+     * 
+     * @return the job status that contains one of the following values:
+     *         <ul>
+     *         <li>canceling
+     *         <li>running
+     *         <li>canceled
+     *         <li>unknown
+     *         </ul>
+     */
     public String getStatus() {
-        return job.status;
+        return status;
     }
 
-    public ArrayList<String> getSubmitParameters() {
-        return job.submitParameters;
+    /**
+     * Gets the list of parameters that were submitted to this job
+     * 
+     * @return List of parameters 
+     */
+    public List<String> getSubmitParameters() {
+        return submitParameters;
     }
 
+    /**
+     * Gets the Epoch time when this job was submitted
+     * 
+     * @return the epoch time when the job was submitted as a long
+     */
     public long getSubmitTime() {
-        return job.submitTime;
+        return submitTime;
     }
 
-    public String getViews() {
-        return job.views;
+    @Override
+    public String toString() {
+        return (new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create().toJson(this));
     }
-
 }

@@ -32,24 +32,46 @@ import org.apache.http.util.EntityUtils;
 
 import com.ibm.streamsx.topology.internal.streams.InvokeCancel;
 
+/**
+ * Basic connection to IBM Streams
+ */
 public class StreamsConnection {
 
-    static final Logger traceLog = Logger.getLogger("com.ibm.streamsx.topology.rest.StreamsConnection");
+    static final Logger traceLog = Logger.getLogger("com.ibm.streamsx.rest.StreamsConnection");
 
+    private final String userName;
     private String url;
-    private String instanceId;
     protected String apiKey;
     private boolean allowInsecureHosts = false;
 
     protected Executor executor;
 
     /**
-     * sets the url for this object removing the trailing slash
+     * Basic connection to a streams instance
+     * 
+     * @param userName
+     *            String representing the userName to connect to the instance
+     * @param authToken
+     *            String representing the password to connect to the instance
+     * @param url
+     *            String representing the root url to the REST API
+     */
+    protected StreamsConnection(String userName, String authToken, String url) {
+        this.userName = userName;
+        String apiCredentials = userName + ":" + authToken;
+        apiKey = "Basic " + DatatypeConverter.printBase64Binary(apiCredentials.getBytes(StandardCharsets.UTF_8));
+
+        executor = Executor.newInstance();
+        setStreamsRESTURL(url);
+    }
+
+    /**
+     * sets the REST API url for this connection removing the trailing slash
      * 
      * @param url
      *            String root path to the REST API
      */
-    protected void setURL(String url) {
+    protected void setStreamsRESTURL(String url) {
         if (url.equals("") || (url.charAt(url.length() - 1) != '/')) {
             this.url = url;
         } else {
@@ -67,45 +89,8 @@ public class StreamsConnection {
      * @param url
      *            String representing the root url to the REST API
      */
-    protected StreamsConnection(String userName, String authToken, String url) {
-        String apiCredentials = userName + ":" + authToken;
-        apiKey = "Basic " + DatatypeConverter.printBase64Binary(apiCredentials.getBytes(StandardCharsets.UTF_8));
-
-        executor = Executor.newInstance();
-        setURL(url);
-    }
-
-    /**
-     * Basic connection to a streams instance
-     * 
-     * @param userName
-     *            String representing the userName to connect to the instance
-     * @param authToken
-     *            String representing the password to connect to the instance
-     * @param url
-     *            String representing the root url to the REST API
-     */
     public static StreamsConnection createInstance(String userName, String authToken, String url) {
         return new StreamsConnection(userName, authToken, url);
-    }
-
-    /**
-     * @param url
-     * @return old value of the url
-     */
-    public String setStreamsInstanceRestURL(String url) {
-        String old_url = url;
-        setURL(url);
-        return old_url;
-    }
-
-    /**
-     * @param id
-     * @return id that has been set
-     */
-    public String setInstanceId(String id) {
-        instanceId = id;
-        return id;
     }
 
     /**
@@ -124,9 +109,14 @@ public class StreamsConnection {
 
         if (HttpStatus.SC_OK == rcResponse) {
             sReturn = EntityUtils.toString(hResponse.getEntity());
+        } else if (HttpStatus.SC_NOT_FOUND == rcResponse) {
+            // with a 404 message, we are likely to have a message from Streams
+            sReturn = EntityUtils.toString(hResponse.getEntity());
+            throw RESTException.create(rcResponse, sReturn);
         } else {
+            // all other errors...
             String httpError = "HttpStatus is " + rcResponse + " for url " + inputString;
-            throw new IllegalStateException(httpError);
+            throw new RESTException(httpError);
         }
         traceLog.finest("Request: " + inputString);
         traceLog.finest(rcResponse + ": " + sReturn);
@@ -134,23 +124,31 @@ public class StreamsConnection {
     }
 
     /**
-     * @return List of {@Instance}
+     * Gets a list of {@link Instance instances} that are available to this
+     * streams connection
+     * 
+     * @return List of {@link Instance IBM Streams Instances} available to this connection
      * @throws IOException
      */
     public List<Instance> getInstances() throws IOException {
         String instancesURL = url + "/instances/";
 
         String sReturn = getResponseString(instancesURL);
-        InstancesArray iArray = new InstancesArray(this, sReturn);
+        List<Instance> instanceList = Instance.getInstanceList(this, sReturn);
 
-        return iArray.getInstances();
+        return instanceList;
     }
 
     /**
-     * @return {@Instance}
+     * Gets a specific {@link Instance instance} identified by the instanceId at
+     * this streams connection
+     * 
+     * @param instanceId
+     *            name of the instance to be retrieved
+     * @return a single {@link Instance}
      * @throws IOException
      */
-    public Instance getInstance() throws IOException {
+    public Instance getInstance(String instanceId) throws IOException {
         Instance si = null;
         if (instanceId.equals("")) {
             // should add some fallback code to see if there's only one instance
@@ -159,26 +157,25 @@ public class StreamsConnection {
             String instanceURL = url + "/instances/" + instanceId;
             String sReturn = getResponseString(instanceURL);
 
-            si = new Instance(this, sReturn);
+            si = Instance.create(this, sReturn);
         }
         return si;
     }
 
     /**
-     * @param id
-     * @return {@Instance}
-     * @throws IOException
-     */
-    public Instance getInstance(String id) throws IOException {
-        instanceId = id;
-        return getInstance();
-    }
-
-    /**
+     * This function is used to disable checking the trusted certificate chain
+     * and should never be used in production environments
+     * 
      * @param allowInsecure
-     *            boolean whether insecure hosts are allowed(true) or not(false)
-     * @return true  if insecure hosts will be allowed
-     *         false if insecure hosts will not be allowed
+     *            <ul>
+     *            <li>true - disables checking
+     *            <li>false - enables checking (default)
+     *            </ul>
+     * @return a boolean indicating the state of the connection after this method was called.
+     *         <ul>
+     *         <li>true - if checking is disabled
+     *         <li>false - if checking is enabled
+     *         </ul>
      */
     public boolean allowInsecureHosts(boolean allowInsecure) {
         try {
@@ -200,18 +197,27 @@ public class StreamsConnection {
             executor = Executor.newInstance();
             allowInsecureHosts = false;
         }
-        traceLog.info("Insecure Host Connection enabled");
+        if ( allowInsecureHosts ) {
+            traceLog.info("Insecure Host Connection enabled");
+        }
         return allowInsecureHosts;
     }
 
     /**
-     * @param jobId string identifying the job to be cancelled
-     * @return true if job is cancelled
+     * Cancels a job at this streams connection identified by the jobId
+     * 
+     * @param jobId
+     *            string identifying the job to be cancelled
+     * @return a boolean indicating
+     *         <ul>
+     *         <li>true if the jobId is cancelled
+     *         <li>false if the jobId did not get cancelled
+     *         </ul>
      * @throws Exception
      */
     public boolean cancelJob(String jobId) throws Exception {
         boolean rc = true;
-        InvokeCancel cancelJob = new InvokeCancel(new BigInteger(jobId));
+        InvokeCancel cancelJob = new InvokeCancel(new BigInteger(jobId), userName);
         cancelJob.invoke();
         return rc;
     }
@@ -242,14 +248,33 @@ public class StreamsConnection {
             List<Instance> instances = sClient.getInstances();
 
             for (Instance instance : instances) {
-                System.out.println("Job: ");
                 List<Job> jobs = instance.getJobs();
                 for (Job job : jobs) {
-                    System.out.println("Operator: ");
+                    System.out.println("Job: " + job.toString());
                     List<Operator> operators = job.getOperators();
                     for (Operator op : operators) {
-                        System.out.println("Metric: ");
+                        System.out.println("Operator: " + op.toString());
                         List<Metric> metrics = op.getMetrics();
+                        for (Metric m : metrics) {
+                            System.out.println("Metric: " + m.toString());
+                        }
+                        List<OutputPort> outP = op.getOutputPorts();
+                        for (OutputPort oport : outP) {
+                            System.out.println("Output Port: " + oport.toString());
+                            for (Metric om : oport.getMetrics()) {
+                                System.out.println("Output Port Metric: " + om.toString());
+                            }
+                        }
+                        List<InputPort> inP = op.getInputPorts();
+                        for (InputPort ip : inP) {
+                            System.out.println("Input Port: " + ip.toString());
+                            for (Metric im : ip.getMetrics()) {
+                                System.out.println("Input Port Metric: " + im.toString());
+                            }
+                        }
+                    }
+                    for (ProcessingElement pe : job.getPes()) {
+                        System.out.println("ProcessingElement:" + pe.toString());
                     }
                 }
 
@@ -260,6 +285,14 @@ public class StreamsConnection {
                         System.out.println("Job canceled");
                     }
                 }
+                try {
+                   instance.getJob("15") ;
+                } catch (RESTException e) {
+                        System.out.println( "Status Code: " + e.getStatusCode() ) ;
+                        System.out.println( "Message Id: " + e.getStreamsErrorMessageId() ) ;
+                        System.out.println( "MessageAsJson: " + e.getStreamsErrorMessageAsJson().toString() ) ;
+                        System.out.println( "Message: " + e.getMessage()) ;
+                    }
             }
         } catch (Exception e) {
             e.printStackTrace();

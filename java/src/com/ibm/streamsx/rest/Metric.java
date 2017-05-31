@@ -4,42 +4,117 @@
  */
 package com.ibm.streamsx.rest;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.Expose;
+
+/**
+ * An object describing an IBM Streams Metric
+ *
+ */
 public class Metric {
+
     @SuppressWarnings("unused")
-    private final StreamsConnection connection;
-    private MetricGson metric;
+    private StreamsConnection connection;
 
-    public Metric(StreamsConnection sc, MetricGson gsonMetric) {
+    @Expose
+    private String description;
+    @Expose
+    private long lastTimeRetrieved;
+    @Expose
+    private String metricKind;
+    @Expose
+    private String metricType;
+    @Expose
+    private String name;
+    @Expose
+    private String resourceType;
+    @Expose
+    private long value;
+
+    /**
+     * this function is not intended for external consumption
+     */
+    void setConnection(final StreamsConnection sc) {
         connection = sc;
-        metric = gsonMetric;
-    };
+    }
 
+    /**
+     * Gets the description for this metric
+     * 
+     * @return the metric description
+     */
     public String getDescription() {
-        return metric.description;
+        return description;
     }
 
+    /**
+     * Gets the Epoch time when the metric was most recently retrieved
+     * 
+     * @return the epoch time when the metric was most recently retrieved as a long
+     */
     public long getLastTimeRetrieved() {
-        return metric.lastTimeRetrieved;
+        return lastTimeRetrieved;
     }
 
+    /**
+     * Describes the kind of metric that has been retrieved
+     * 
+     * @return the metric kind that contains one of the following values:
+     *         <ul>
+     *         <li>counter
+     *         <li>guage
+     *         <li>time
+     *         <li>unknown
+     *         </ul>
+     */
     public String getMetricKind() {
-        return metric.metricKind;
+        return metricKind;
     }
 
+    /**
+     * Describes the type of metric that has been retrieved
+     * 
+     * @return the metric type that contains one of the following values:
+     *         <ul>
+     *         <li>system
+     *         <li>custom
+     *         <li>unknown
+     *         </ul>
+     */
     public String getMetricType() {
-        return metric.metricType;
+        return metricType;
     }
 
+    /**
+     * Gets the name of this metric
+     * 
+     * @return the metric name
+     */
     public String getName() {
-        return metric.name;
+        return name;
     }
 
+    /**
+     * Identifies the REST resource type
+     * 
+     * @return "metric"
+     */
     public String getResourceType() {
-        return metric.resourceType;
+        return resourceType;
     }
 
+    /**
+     * Gets the value for this metric
+     * 
+     * @return the metric value as a long
+     */
     public long getValue() {
-        return metric.value;
+        return value;
     }
 
+    @Override
+    public String toString() {
+        return (new GsonBuilder().excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create().toJson(this));
+    }
 }
