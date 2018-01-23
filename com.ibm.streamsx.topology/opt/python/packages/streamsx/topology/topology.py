@@ -180,6 +180,7 @@ except (ImportError,NameError):
 import copy
 import random
 import streamsx._streams._placement as _placement
+import streamsx.spl.code.translator
 import streamsx.topology.graph
 import streamsx.topology.schema
 import streamsx.topology.functions
@@ -290,6 +291,8 @@ class Topology(object):
            Package names in `include_packages` take precedence over package names in `exclude_packages`.
     """  
 
+    TRANSLATE_FEATURE = "TRANSLATE"
+
     def __init__(self, name=None, namespace=None, files=None):
         if name is None or namespace is None:
             # Take the name of the calling function
@@ -325,6 +328,10 @@ class Topology(object):
         self.exclude_packages.update(streamsx.topology._deppkgs._DEP_PACKAGES)
         
         self.graph = streamsx.topology.graph.SPLGraph(self, name, namespace)
+
+        # feature support
+        self.features = dict()
+        self.features[Topology.TRANSLATE_FEATURE] = os.environ.get('STREAMSX_TOPOLOGY_' + Topology.TRANSLATE_FEATURE, False)
 
     @property
     def name(self):
@@ -576,6 +583,14 @@ class Stream(_placement._Placement, object):
         """
         sl = _SourceLocation(_source_info(), 'filter')
         _name = self.topology.graph._requested_name(name, action="filter", func=func)
+
+        # Try translating filter to an SPL expression.
+        spl_filter_mapop = streamsx.spl.code.translator.translate_filter(self, func, name)
+        if spl_filter_mapop is not None:
+            spl_filter_mapop._op().sl = sl
+            spl_filter_mapop._op()._layout(kind='Filter', name=_name, orig_name=name)
+            return spl_filter_mapop.stream
+
         op = self.topology.graph.addOperator(self.topology.opnamespace+"::Filter", func, name=_name, sl=sl)
         op.addInputPort(outputPort=self.oport, name=self.name)
         streamsx.topology.schema.StreamSchema._fnop_style(self.oport.schema, op, 'pyStyle')
@@ -677,7 +692,12 @@ class Stream(_placement._Placement, object):
         """
         if schema is None:
             schema = streamsx.topology.schema.CommonSchema.Python
-     
+        else:
+            schema = streamsx.topology.schema._stream_schema(schema)
+        spl_map_mapop = streamsx.spl.code.translator.translate_map(self, func, schema, name)
+        if spl_map_mapop is not None:
+            return spl_map_mapop.stream
+
         ms = self._map(func, schema=schema, name=name)._layout('Map')
         ms.oport.operator.sl = _SourceLocation(_source_info(), 'map')
         return ms
