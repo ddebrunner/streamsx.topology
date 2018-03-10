@@ -67,7 +67,7 @@ def _parse_args():
     app_group.add_argument('--bundle', help="Streams application bundle (sab file) to submit to service")
 
     bld_group = cmd_parser.add_argument_group('Build options', 'Application build options')
-    bld_group.add_argument('--toolkits', nargs='+', help='SPL toolkit containing the main composite and any other required SPL toolkits.')
+    bld_group.add_argument('--toolkits', nargs='+', help='Path to SPL toolkit containing the main composite and any other required SPL toolkit paths.', metavar='path')
 
     _define_jco_args(cmd_parser)
 
@@ -85,7 +85,7 @@ def _define_jco_args(cmd_parser):
     jo_group.add_argument('--preload', action='store_true', help='Preload job onto all resources in the instance')
     jo_group.add_argument('--trace', choices=['error', 'warn', 'info', 'debug', 'trace'], help='Application trace level')
 
-    jo_group.add_argument('--submission-parameters', '-p', nargs='+', action=_SubmitParamArg, help="Submission parameters as name=value pairs")
+    jo_group.add_argument('--submission-parameters', '-p', nargs='+', action=_SubmitParamArg, help="Submission parameters as name=value pairs", metavar='name=value')
 
     jo_group.add_argument('--job-raw-overlay', help='Raw JSON job configuration overlay to merge into job configuration.', metavar='json')
     jo_group.add_argument('--job-config-overlays', help="Path to file containing job configuration overlays JSON. Overrides any job configuration set by the application." , metavar='file')
