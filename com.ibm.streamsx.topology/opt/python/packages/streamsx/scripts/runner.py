@@ -87,6 +87,7 @@ def _define_jco_args(cmd_parser):
 
     jo_group.add_argument('--submission-parameters', '-p', nargs='+', action=_SubmitParamArg, help="Submission parameters as name=value pairs")
 
+    jo_group.add_argument('--job-raw-overlay', help='Raw JSON job configuration overlay to merge into job configuration.', metavar='json')
     jo_group.add_argument('--job-config-overlays', help="Path to file containing job configuration overlays JSON. Overrides any job configuration set by the application." , metavar='file')
 
     return jo_group,
@@ -180,6 +181,8 @@ def _job_config_args(cmd_args, app):
     elif not ctx.ConfigParams.JOB_CONFIG in cfg:
         ctx.JobConfig().add(cfg)
     jc = cfg[ctx.ConfigParams.JOB_CONFIG]
+    if cmd_args.job_raw_overlay:
+        jc.raw_overlay = json.loads(str(cmd_args.job_raw_overlay))
     if cmd_args.job_name:
         jc.job_name = str(cmd_args.job_name)
     if cmd_args.preload:

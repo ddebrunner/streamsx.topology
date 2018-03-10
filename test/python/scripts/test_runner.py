@@ -157,6 +157,18 @@ class TestRunnerService(unittest.TestCase):
         args.append(jn)
         srr = self._run(args)
         self.assertEqual(jn, srr['name'])
+
+        # Test raw overlay
+        # use job as it is easily tested
+        args.pop()
+        args.pop()
+        jn = random_job_name()
+        jc = JobConfig(job_name=jn)
+        args.append('--job-raw-overlay')
+        jcos = jc.as_overlays()
+        args.append(json.dumps(jcos['jobConfigOverlays'][0]))
+        srr = self._run(args)
+        self.assertEqual(jn, srr['name'])
         
         os.remove(sr['bundlePath'])
         os.remove(sr['jobConfigPath'])
