@@ -217,7 +217,7 @@ typedef int (*__splpy_dn_fp)(PyObject *, Py_ssize_t *, PyObject **, PyObject **)
 
 extern "C" {
   static __splpy_p_s_fp __spl_fp_PyTuple_New;
-  static __splpy_p_s_fp __spl_fp_PyTuple_Size;
+  static __splpy_s_p_fp __spl_fp_PyTuple_Size;
   static __splpy_p_ps_fp __spl_fp_PyTuple_GetItem;
   static __splpy_i_psp_fp __spl_fp_PyTuple_SetItem;
   static __splpy_p_p_fp __spl_fp_PyIter_Next;
