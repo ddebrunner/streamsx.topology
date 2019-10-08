@@ -55,6 +55,8 @@ typedef PyObject * (*__splpy_p_ppp_fp)(PyObject *, PyObject *, PyObject *);
 typedef int (*__splpy_i_pp_fp)(PyObject *, PyObject *);
 typedef int (*__splpy_i_ppp_fp)(PyObject *, PyObject *, PyObject *);
 typedef PyObject * (*__splpy_p_s_fp)(Py_ssize_t);
+typedef PyObject * (*__splpy_p_ps_fp)(PyObject*, Py_ssize_t);
+typedef int (*__splpy_i_psp_fp)(PyObject*, Py_ssize_t, PyObject*);
 typedef PyObject * (*__splpy_v_p_fp)(void);
 typedef char * (*__splpy_c_p_fp)(PyObject *);
 typedef int (*__splpy_i_p_fp)(PyObject *);
@@ -215,6 +217,9 @@ typedef int (*__splpy_dn_fp)(PyObject *, Py_ssize_t *, PyObject **, PyObject **)
 
 extern "C" {
   static __splpy_p_s_fp __spl_fp_PyTuple_New;
+  static __splpy_p_s_fp __spl_fp_PyTuple_Size;
+  static __splpy_p_ps_fp __spl_fp_PyTuple_GetItem;
+  static __splpy_i_psp_fp __spl_fp_PyTuple_SetItem;
   static __splpy_p_p_fp __spl_fp_PyIter_Next;
   static __splpy_v_p_fp __spl_fp_PyDict_New;
   static __splpy_s_p_fp __spl_fp_PyDict_Size;
@@ -230,6 +235,15 @@ extern "C" {
 
   static PyObject * __spl_fi_PyTuple_New(Py_ssize_t size) {
      return __spl_fp_PyTuple_New(size);
+  }
+  static Py_ssize_t __spl_fi_PyTuple_Size(PyObject *t) {
+     return __spl_fp_PyTuple_Size(t);
+  }
+  static PyObject * __spl_fi_PyTuple_GetItem(PyObject *t, Py_ssize_t pos) {
+     return __spl_fp_PyTuple_GetItem(t, pos);
+  }
+  static int __spl_fi_PyTuple_SetItem(PyObject *t, Py_ssize_t pos, PyObject *o) {
+     return __spl_fp_PyTuple_SetItem(t, pos, o);
   }
   static PyObject * __spl_fi_PyIter_Next(PyObject * o) {
      return __spl_fp_PyIter_Next(o);
@@ -269,6 +283,9 @@ extern "C" {
   }
 }
 #pragma weak PyTuple_New = __spl_fi_PyTuple_New
+#pragma weak PyTuple_Size = __spl_fi_PyTuple_Size
+#pragma weak PyTuple_GetItem = __spl_fi_PyTuple_GetItem
+#pragma weak PyTuple_SetItem = __spl_fi_PyTuple_SetItem
 #pragma weak PyIter_Next = __spl_fi_PyIter_Next
 #pragma weak PyDict_New = __spl_fi_PyDict_New
 #pragma weak PyDict_Size = __spl_fi_PyDict_Size
@@ -466,6 +483,10 @@ class SplpySym {
      __SPLFIX(PyState_AddModule, __splpy_sam_fp);
  
      __SPLFIX(PyTuple_New, __splpy_p_s_fp);
+     __SPLFIX(PyTuple_Size, __splpy_s_p_fp);
+     __SPLFIX(PyTuple_GetItem, __splpy_p_ps_fp);
+     __SPLFIX(PyTuple_SetItem, __splpy_i_psp_fp);
+
      __SPLFIX(PyIter_Next, __splpy_p_p_fp);
      __SPLFIX(PyDict_New, __splpy_v_p_fp);
      __SPLFIX(PyDict_Size, __splpy_s_p_fp);

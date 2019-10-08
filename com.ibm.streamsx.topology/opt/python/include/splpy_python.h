@@ -18,9 +18,11 @@
 #ifndef __SPL__SPLPY_PYTHON_H
 #define __SPL__SPLPY_PYTHON_H
 
-#if PY_MAJOR_VERSION == 3
-#define Py_LIMITED_API ((PY_MAJOR_VERSION << 24) | (PY_MINOR_VERSION << 16))
-#endif
+#define Py_LIMITED_API ((3 << 24) | (5 << 16))
+
+#define PyTuple_GET_SIZE(t) PyTuple_Size(t)
+#define PyTuple_GET_ITEM(t, pos) PyTuple_GetItem((t), (pos))
+#define PyTuple_SET_ITEM(t, pos, o) PyTuple_SetItem((t), (pos), (o))
 
 #include "Python.h"
 
