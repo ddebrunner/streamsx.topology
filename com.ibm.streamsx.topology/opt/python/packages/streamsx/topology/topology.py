@@ -1274,10 +1274,14 @@ class Stream(_placement._Placement, object):
         .. versionadded:: 1.8 Support for submitting `dict` objects as stream tuples to a structured stream (in addition to existing support for `tuple` objects).
         .. versionchanged:: 1.11 `func` is optional.
         """
+        hints = None
         if func is not None:
-            streamsx._streams._hints.check_map(func, self)
+            hints = streamsx._streams._hints.check_map(func, self)
         if schema is None:
-            schema = streamsx.topology.schema.CommonSchema.Python
+            if hints:
+                schema = hints.schema
+            else:
+                schema = streamsx.topology.schema.CommonSchema.Python
         if func is None:
             func = streamsx.topology.runtime._identity
             if name is None:
@@ -1285,7 +1289,7 @@ class Stream(_placement._Placement, object):
      
         ms = self._map(func, schema=schema, name=name)._layout('Map')
         ms.oport.operator.sl = _SourceLocation(_source_info(), 'map')
-        return ms
+        return ms._add_hints(hints)
 
     def transform(self, func, name=None):
         """
