@@ -118,11 +118,11 @@ a notebook or an interactive session) then a serialized copy of its definition b
 topology. The supported types of captured globals for these callables is limited to
 avoid increasing the size of the application and serialization failures due non-serializable
 objects directly or indirectly referenced from captured globals. The supported types of captured globals
-are constants (``int``, ``str``, ``float``, ``bool``), modules and module attributes (e.g. classes, functions and variables
-defined in a module). If a lambda or inline function causes an exception due to unsupported global
+are constants (``int``, ``str``, ``float``, ``bool``, ``bytes``, ``complex``), modules, module attributes (e.g. classes, functions and variables
+defined in a module), inline classes and functions. If a lambda or inline callable causes an exception due to unsupported global
 capture then moving it to its own module is a solution.
 
-Due to `Python bug 36697 <https://bugs.python.org/issue36697>`_ a lambda or inline function can
+Due to `Python bug 36697 <https://bugs.python.org/issue36697>`_ a lambda or inline callable can
 incorrect capture a global variable. For example an inline class using a attribute of ``self.model``
 will incorrectly capture the global ``model`` even if the global variable ``model`` is never used within the class.
 To workaround this bug use attribute or variable names that do not shadow global variables
@@ -211,16 +211,6 @@ Module contents
 ***************
 
 """
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from future.builtins import *
-try:
-    from future import standard_library
-    standard_library.install_aliases()
-except (ImportError,NameError):
-    pass
 
 __all__ = [ 'Routing', 'SubscribeConnection', 'Topology', 'Stream', 'View', 'PendingStream', 'Window', 'Sink' ]
 
@@ -417,8 +407,6 @@ class Topology(object):
         
         if sys.version_info.major == 3:
           self.opnamespace = "com.ibm.streamsx.topology.functional.python"
-        elif sys.version_info.major == 2 and sys.version_info.minor == 7:
-          self.opnamespace = "com.ibm.streamsx.topology.functional.python2"
         else:
           raise ValueError("Python version not supported.")
         self._streams = dict()
@@ -816,8 +804,8 @@ class Topology(object):
             supported within a lambda expression or a callable
             that is not a function.
 
-        The default type of a submission parameter's value is a `str`
-        (`unicode` on Python 2.7). When a `default` is specified
+        The default type of a submission parameter's value is a `str`.
+        When a `default` is specified
         the type of the value matches the type of the default.
 
         If `default` is not set, then the type can be set with `type_`.
@@ -1247,7 +1235,7 @@ class Stream(_placement._Placement, object):
         modifies each ``result`` before submission.
 
         * ``object`` or :py:const:`~streamsx.topology.schema.CommonSchema.Python` - The default:  `result` is submitted.
-        * ``str`` type (``unicode`` 2.7) or :py:const:`~streamsx.topology.schema.CommonSchema.String` - A stream of strings: ``str(result)`` is submitted.
+        * ``str`` type or :py:const:`~streamsx.topology.schema.CommonSchema.String` - A stream of strings: ``str(result)`` is submitted.
         * ``json`` or :py:const:`~streamsx.topology.schema.CommonSchema.Json` - A stream of JSON objects: ``result`` must be convertable to a JSON object using `json` package.
         * :py:const:`~streamsx.topology.schema.StreamSchema` - A structured stream. `result` must be a `dict` or (Python) `tuple`. When a `dict` is returned the outgoing stream tuple attributes are set by name, when a `tuple` is returned stream tuple attributes are set by position.
         * string value - Equivalent to passing ``StreamSchema(schema)``
@@ -2235,16 +2223,13 @@ class Window(object):
         stateful = _determine_statefulness(function)
 
         # This is based on graph._addOperatorFunction.
-        recurse = None
         if isinstance(function, types.LambdaType) and function.__name__ == "<lambda>" :
             function = streamsx.topology.runtime._Callable1(function, no_context=True)
-            recurse = True
         elif function.__module__ == '__main__':
             # Function/Class defined in main, create a callable wrapping its
             # dill'ed form
             function = streamsx.topology.runtime._Callable1(function,
                 no_context = True if inspect.isroutine(function) else None)
-            recurse = True
          
         if inspect.isroutine(function):
             # callable is a function
@@ -2253,7 +2238,7 @@ class Window(object):
             # callable is a callable class instance
             name = function.__class__.__name__
             # dill format is binary; base64 encode so it is json serializable 
-            dilled_callable = base64.b64encode(dill.dumps(function, recurse=recurse if sys.version_info.major == 2 else None)).decode("ascii")
+            dilled_callable = base64.b64encode(dill.dumps(function, recurse=None)).decode("ascii")
 
         self._config['partitioned'] = True
         if dilled_callable is not None:
