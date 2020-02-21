@@ -1,6 +1,6 @@
 /*
 # Licensed Materials - Property of IBM
-# Copyright IBM Corp. 2019
+# Copyright IBM Corp. 2019,2020
 */
 
 /*
@@ -32,7 +32,6 @@ public:
 
   PyRefPayload(PyObject *ref) {
     ref_ = reinterpret_cast<void *>(ref);
-    //std::cerr << "Create REF\n";
   }
   PyRefPayload(void *ref) {
       ref_ = ref;
@@ -40,12 +39,10 @@ public:
   
 
   ~PyRefPayload() {
-    //std::cerr << "Destroy REF\n";
     clearref();
    }
 
   PyRefPayload *clone() const {
-    //std::cerr << "Clone REF\n";
     PyRefPayload *prp = new PyRefPayload(ref_);
     prp->ref();
     return prp;
@@ -66,7 +63,7 @@ public:
   PyObject * ref() const {
       if (ref_ == 0)
           return NULL;
-      PyObject * ref =  reinterpret_cast<PyObject*>(ref_);
+      PyObject *ref =  reinterpret_cast<PyObject*>(ref_);
       SplpyGIL lock;
       Py_INCREF(ref);
       return ref;
@@ -85,8 +82,13 @@ private:
     }
 };
 
+/**
+ * Returns a Python object reference owned by the caller (ref count bumped)
+ * that was previously saved by addTupleRef.
+ * Returns NULL if no object was added to the tuple.
+ */
 inline PyObject *getTupleRef(SPL::Tuple const &tuple) {
-    const SPL::PayloadContainer* pc = tuple.getPayloadContainer();
+    const SPL::PayloadContainer *pc = tuple.getPayloadContainer();
     if (pc == NULL)
          return NULL;
 
@@ -94,11 +96,20 @@ inline PyObject *getTupleRef(SPL::Tuple const &tuple) {
     if (pl == NULL)
         return NULL;
 
-    const PyRefPayload * prp = reinterpret_cast<const PyRefPayload *>(pl);
+    const PyRefPayload *prp = reinterpret_cast<const PyRefPayload *>(pl);
 
     return prp->ref();
 }
 
+/**
+ * Adds a Python object reference to the tuple as a payload.
+ *
+ * The associated object for the SPL tuple can be obtained
+ * using getTupleRef, even if the SPL tuple was copied by
+ * the SPL runtime.
+ *
+ * This function steals the reference to ref.
+ */
 inline void addTupleRef(SPL::Tuple *otuple, PyObject *ref) {
     SPL::PayloadContainer *pc = otuple->getPayloadContainer();
     if (pc == NULL) {
@@ -108,10 +119,6 @@ inline void addTupleRef(SPL::Tuple *otuple, PyObject *ref) {
     PyRefPayload *pyref = new streamsx::topology::PyRefPayload(ref);
     pc->add("pyref", *pyref);
 }
-
-
-
-
 }}
 
 #endif /* __SPL__SPLPY_REFS_H */
